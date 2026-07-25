@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* =========================================================
+   PALETA GLOBAL DALTONISMO-FRIENDLY (VERSIÓN PRO)
+   ========================================================= */
+:root {
+  --color-neutral-bg: #E5E7EB;   /* Gris Claro para días neutros/sin operar */
+  --color-neutral-text: #374151; /* Gris Oscuro para texto sobre fondo claro */
+  --color-profit-bg: #2563EB;    /* Azul Intenso para días rentables */
+  --color-profit-text: #FFFFFF;  /* Blanco puro para contraste sobre azul */
+  --color-loss-bg: #991B1B;      /* Rojo Carmesí Oscuro para días en pérdida */
+  --color-loss-text: #FFFFFF;    /* Blanco puro para contraste sobre rojo */
+  --color-alert: #FACC15;        /* Amarillo Limón para alertas de psicología */
+}
+
+/* =========================================================
+   ESTILOS BASE
+   ========================================================= */
+body {
+  background-color: #0a0a0a;
+  color: #d4d4d4;
+  margin: 0;
+  /* Previene el efecto de rebote en navegadores webkit (Mac/iOS) 
+     para dar la sensación de ser una aplicación nativa estricta */
+  overscroll-behavior-y: none;
+}
+
+/* =========================================================
+   UTILIDADES PERSONALIZADAS
+   ========================================================= */
+
+/* Scrollbar Institucional: Fina, oscura y no intrusiva */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #262626;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #404040;
+}
+
+/* 
+  Si decides migrar los estilos en línea de React a clases CSS puras, 
+  aquí tienes las clases listas para ser consumidas en tu Calendar.tsx 
+*/
+.day-neutral {
+  background-color: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
+  border-color: var(--color-neutral-bg);
+}
+
+.day-profit {
+  background-color: var(--color-profit-bg);
+  color: var(--color-profit-text);
+  border-color: var(--color-profit-bg);
+}
+
+.day-loss {
+  background-color: var(--color-loss-bg);
+  color: var(--color-loss-text);
+  border-color: var(--color-loss-bg);
+}
