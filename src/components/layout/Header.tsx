@@ -1,12 +1,11 @@
 // src/components/layout/Header.tsx
-
 import React from 'react';
 import { Moon, DatabaseBackup } from 'lucide-react';
 import { useMoonStore } from '../../store/useMoonStore';
 import { exportData } from '../../utils/backup';
 
 export const Header: React.FC = () => {
-  const { currentStrategyId } = useMoonStore();
+  const { currentStrategyId, setCurrentStrategyId, strategies } = useMoonStore();
 
   const handleQuickExport = async () => {
     try {
@@ -28,24 +27,30 @@ export const Header: React.FC = () => {
         <span className="font-mono font-bold tracking-widest text-[#d4d4d4] text-sm uppercase">MOON</span>
       </div>
 
-      {/* Centro: Selector de Estrategia (Ancla de Contexto) */}
+      {/* Centro: Selector Dinámico de Estrategia */}
       <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-3">
-        <span className="text-xs text-[#525252] uppercase tracking-wider font-mono">Strategy</span>
-        <button className="text-sm px-4 py-1.5 bg-[#141414] border border-[#262626] rounded text-[#d4d4d4] hover:border-[#404040] hover:bg-[#1a1a1a] transition-colors focus:outline-none focus:ring-1 focus:ring-[#525252]">
-          {currentStrategyId ? 'Active Strategy' : 'Select Strategy'}
-        </button>
+        <span className="text-xs text-[#525252] uppercase tracking-wider font-mono">Active Profile</span>
+        <select
+          value={currentStrategyId || ''}
+          onChange={(e) => setCurrentStrategyId(e.target.value)}
+          className="bg-[#141414] border border-[#262626] rounded px-4 py-1.5 text-sm text-[#d4d4d4] hover:border-[#404040] focus:outline-none focus:border-[#2563EB] transition-colors font-mono cursor-pointer appearance-none min-w-56"
+        >
+          <option value="" disabled>Select a Strategy...</option>
+          {strategies.map((strat) => (
+            <option key={strat.id} value={strat.id}>
+              {strat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Derecha: Estado de Sincronizaci n y Acciones R pidas */}
+      {/* Derecha: Estado de Sincronización y Acciones Rápidas */}
       <div className="flex items-center gap-4">
-        
-        {/* Indicador de Auto-Save */}
         <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#0f0f0f] border border-[#262626]">
           <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
           <span className="text-xs text-[#737373] font-mono">Synced</span>
         </div>
         
-        {/* Bot n R pido de Exportaci n (Conectado) */}
         <button 
           onClick={handleQuickExport}
           className="text-[#525252] hover:text-[#d4d4d4] transition-colors"

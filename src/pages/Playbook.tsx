@@ -1,28 +1,27 @@
 // src/pages/Playbook.tsx
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Target, ShieldCheck, Plus, Settings2, Activity, Star, Flame, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { BookOpen, Target, ShieldCheck, Settings2, Activity, Star, Flame, ZoomIn, Image as ImageIcon, Briefcase, Plus, Edit2, Trash2, CheckCircle } from 'lucide-react';
 import { StrategyModal } from '../components/modals/StrategyModal';
 import { LightboxModal } from '../components/modals/LightboxModal';
 import { useMoonStore } from '../store/useMoonStore';
-import { getStrategyById, getTradesByStrategy, updateTrade } from '../data/queries';
+import { getStrategyById, getTradesByStrategy, updateTrade, deleteStrategyAndTrades } from '../data/queries';
 import { Strategy, Trade } from '../types';
 import { Calendar } from '../components/calendar/Calendar';
 
-type TabType = 'RULES' | 'DAILY' | 'MASTERS';
+type TabType = 'STRATEGIES' | 'RULES' | 'DAILY' | 'MASTERS';
 
 export const Playbook: React.FC = () => {
-  const { currentStrategyId, selectedDate, setSidePanelOpen } = useMoonStore();
+  const { currentStrategyId, setCurrentStrategyId, selectedDate, setSidePanelOpen, strategies, removeStrategyFromStore } = useMoonStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editStrategyId, setEditStrategyId] = useState<string | null>(null);
+
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   
-  // UI States
-  const [activeTab, setActiveTab] = useState<TabType>('RULES');
+  const [activeTab, setActiveTab] = useState<TabType>('STRATEGIES');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Consulta de datos de la estrategia y sus trades
   useEffect(() => {
     if (currentStrategyId) {
       getStrategyById(currentStrategyId).then(data => {
@@ -35,8 +34,6 @@ export const Playbook: React.FC = () => {
     }
   }, [currentStrategyId]);
 
-  // Si seleccionamos una fecha en el calendario, cambiamos automáticamente a la pestaña 'DAILY'
-  // y cerramos el SidePanel (ya que el calendario del Index lo abre por defecto)
   useEffect(() => {
     if (selectedDate) {
       setActiveTab('DAILY');
@@ -44,16 +41,9 @@ export const Playbook: React.FC = () => {
     }
   }, [selectedDate, setSidePanelOpen]);
 
-  // Filtros de Trades
-  const dailyTrades = useMemo(() => 
-    trades.filter(t => t.date === selectedDate), 
-  [trades, selectedDate]);
+  const dailyTrades = useMemo(() => trades.filter(t => t.date === selectedDate), [trades, selectedDate]);
+  const masterTrades = useMemo(() => trades.filter(t => t.isFavorite), [trades]);
 
-  const masterTrades = useMemo(() => 
-    trades.filter(t => t.isFavorite), 
-  [trades]);
-
-  // Función para Promover / Degradar un Trade (Favoritos)
   const toggleFavorite = async (trade: Trade) => {
     try {
       const newStatus = !trade.isFavorite;
@@ -64,11 +54,35 @@ export const Playbook: React.FC = () => {
     }
   };
 
+  const handleEditStrategy = (id: string) => {
+    setEditStrategyId(id);
+    setIsModalOpen(true);
+  };
+
+  const handleCreateStrategy = () => {
+    setEditStrategyId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteStrategy = async (id: string) => {
+    if (window.confirm("WARNING: This will permanently delete this strategy AND ALL its trades. Proceed?")) {
+      try {
+        await deleteStrategyAndTrades(id);
+        removeStrategyFromStore(id);
+      } catch (error) {
+        console.error("Failed to delete strategy:", error);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
-      <StrategyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <StrategyModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        strategyIdToEdit={editStrategyId}
+      />
 
-      {/* LIGHTBOX MODAL */}
       <LightboxModal 
         isOpen={!!lightboxImage} 
         imageUrl={lightboxImage} 
@@ -82,21 +96,20 @@ export const Playbook: React.FC = () => {
           <p className="text-sm text-[#737373] mt-1 font-mono">Master Setups and Operational Guidelines</p>
         </div>
 
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-[#141414] border border-[#262626] text-[#d4d4d4] px-4 py-2 rounded font-medium hover:border-[#404040] hover:bg-[#1a1a1a] transition-colors shadow-sm"
-        >
-          <Settings2 size={16} strokeWidth={2} />
-          <span className="text-sm font-mono">Edit Profile</span>
-        </button>
+        {activeTab !== 'STRATEGIES' && currentStrategyId && (
+          <button 
+            onClick={() => handleEditStrategy(currentStrategyId)}
+            className="flex items-center gap-2 bg-[#141414] border border-[#262626] text-[#d4d4d4] px-4 py-2 rounded font-medium hover:border-[#404040] hover:bg-[#1a1a1a] transition-colors shadow-sm"
+          >
+            <Settings2 size={16} strokeWidth={2} />
+            <span className="text-sm font-mono">Edit Active Profile</span>
+          </button>
+        )}
       </div>
 
-      {/* LAYOUT PRO 30/70 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
         
-        {/* =========================================================
-            ZONA IZQUIERDA (30%) - ÍNDICE TEMPORAL (CALENDARIO)
-            ========================================================= */}
+        {/* ZONA IZQUIERDA (30%) - CALENDARIO */}
         <div className="lg:col-span-4 border border-[#262626] rounded-lg bg-[#0f0f0f] shadow-inner overflow-hidden flex flex-col">
           <div className="p-4 border-b border-[#262626] bg-[#0a0a0a] shrink-0">
             <h2 className="text-xs font-mono text-[#737373] uppercase tracking-widest">Temporal Index</h2>
@@ -108,41 +121,72 @@ export const Playbook: React.FC = () => {
           </div>
         </div>
 
-        {/* =========================================================
-            ZONA DERECHA (70%) - ÁREA DE ESTUDIO
-            ========================================================= */}
+        {/* ZONA DERECHA (70%) */}
         <div className="lg:col-span-8 border border-[#262626] rounded-lg bg-[#0f0f0f] shadow-inner flex flex-col overflow-hidden">
           
-          {/* Navegación de Pestañas */}
-          <div className="flex items-center border-b border-[#262626] bg-[#0a0a0a] px-2 shrink-0">
-            <TabButton 
-              active={activeTab === 'RULES'} 
-              onClick={() => setActiveTab('RULES')} 
-              icon={<BookOpen size={16} />} 
-              label="Rules & Manifesto" 
-            />
-            <TabButton 
-              active={activeTab === 'DAILY'} 
-              onClick={() => setActiveTab('DAILY')} 
-              icon={<Activity size={16} />} 
-              label={selectedDate ? `Log: ${selectedDate}` : 'Daily Log'} 
-              disabled={!selectedDate}
-            />
-            <TabButton 
-              active={activeTab === 'MASTERS'} 
-              onClick={() => setActiveTab('MASTERS')} 
-              icon={<Flame size={16} />} 
-              label={`Master Setups (${masterTrades.length})`} 
-            />
+          <div className="flex items-center border-b border-[#262626] bg-[#0a0a0a] px-2 shrink-0 overflow-x-auto custom-scrollbar">
+            <TabButton active={activeTab === 'STRATEGIES'} onClick={() => setActiveTab('STRATEGIES')} icon={<Briefcase size={16} />} label="Strategies" />
+            <TabButton active={activeTab === 'RULES'} onClick={() => setActiveTab('RULES')} icon={<BookOpen size={16} />} label="Rules" disabled={!currentStrategyId} />
+            <TabButton active={activeTab === 'DAILY'} onClick={() => setActiveTab('DAILY')} icon={<Activity size={16} />} label={selectedDate ? `Log: ${selectedDate}` : 'Daily Log'} disabled={!selectedDate} />
+            <TabButton active={activeTab === 'MASTERS'} onClick={() => setActiveTab('MASTERS')} icon={<Flame size={16} />} label={`Masters (${masterTrades.length})`} disabled={!currentStrategyId} />
           </div>
 
-          {/* Contenido Dinámico de la Zona Derecha */}
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             
-            {/* --- PESTAÑA: RULES & MANIFESTO --- */}
+            {/* PESTAÑA: STRATEGIES MANAGER */}
+            {activeTab === 'STRATEGIES' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between border-b border-[#262626] pb-4">
+                  <h3 className="text-lg font-mono text-[#d4d4d4] flex items-center gap-2">
+                    <Briefcase className="text-[#2563EB]" size={20} /> Profiles Manager
+                  </h3>
+                  <button onClick={handleCreateStrategy} className="flex items-center gap-2 bg-[#2563EB] text-white px-4 py-2 rounded text-xs font-mono font-bold uppercase tracking-wider hover:bg-[#1D4ED8] transition-colors shadow-sm">
+                    <Plus size={14} strokeWidth={2.5} /> New Strategy
+                  </button>
+                </div>
+
+                {strategies.length === 0 ? (
+                  <div className="border border-[#262626] border-dashed rounded-lg bg-[#0a0a0a] p-10 text-center">
+                    <p className="text-[#525252] font-mono text-sm">No strategies found. Create your first profile.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {strategies.map((strat) => {
+                      const isActive = strat.id === currentStrategyId;
+                      return (
+                        <div key={strat.id} className={`border rounded-lg p-5 flex flex-col justify-between transition-all ${isActive ? 'bg-[#141414] border-[#2563EB]/50 shadow-[0_0_15px_rgba(37,99,235,0.1)]' : 'bg-[#0a0a0a] border-[#262626] hover:border-[#404040]'}`}>
+                          <div>
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-mono text-base font-bold text-[#d4d4d4] truncate pr-2">{strat.name}</h4>
+                              {isActive && <CheckCircle size={16} className="text-[#2563EB] shrink-0" />}
+                            </div>
+                            <p className="text-xs font-mono text-[#737373] mb-4">Capital: <span className="text-[#d4d4d4]">${strat.initialCapital.toLocaleString()}</span></p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#262626]/50">
+                            {!isActive && (
+                              <button onClick={() => setCurrentStrategyId(strat.id)} className="flex-1 bg-[#262626] hover:bg-[#404040] text-[#d4d4d4] text-[10px] uppercase tracking-widest font-mono font-bold py-2 rounded transition-colors">
+                                Activate
+                              </button>
+                            )}
+                            <button onClick={() => handleEditStrategy(strat.id)} className="p-2 bg-[#141414] border border-[#262626] hover:bg-[#262626] text-[#d4d4d4] rounded transition-colors" title="Edit">
+                              <Edit2 size={14} />
+                            </button>
+                            <button onClick={() => handleDeleteStrategy(strat.id)} className="p-2 bg-[#141414] border border-[#262626] hover:bg-[#991B1B]/20 hover:border-[#991B1B]/50 hover:text-[#f87171] text-[#737373] rounded transition-colors" title="Delete">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PESTAÑA: RULES */}
             {activeTab === 'RULES' && (
               <div className="space-y-8 animate-in fade-in duration-300">
-                {/* Manifesto */}
                 <section>
                   <h3 className="flex items-center gap-2 text-sm font-mono text-[#d4d4d4] border-b border-[#262626] pb-2 mb-4 uppercase tracking-widest">
                     <Target className="text-[#525252]" size={18} /> Philosophy & Manifesto
@@ -151,9 +195,7 @@ export const Playbook: React.FC = () => {
                     {strategy?.manifesto || "Define tu ancla mental y filosofía como trader en la configuración del perfil."}
                   </div>
                 </section>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Golden Rules */}
                   <section className="bg-[#0a0a0a] border border-[#262626] rounded p-5">
                     <h3 className="flex items-center gap-2 text-xs font-mono text-[#737373] uppercase tracking-widest mb-4">
                       <ShieldCheck className="text-[#525252]" size={16} /> Golden Rules
@@ -162,8 +204,6 @@ export const Playbook: React.FC = () => {
                       {strategy?.rules || "No golden rules defined."}
                     </div>
                   </section>
-
-                  {/* Market Context & Risk */}
                   <section className="space-y-6">
                     <div className="bg-[#0a0a0a] border border-[#262626] rounded p-5">
                       <h3 className="text-xs font-mono text-[#737373] uppercase tracking-widest mb-3">Market Context</h3>
@@ -182,7 +222,7 @@ export const Playbook: React.FC = () => {
               </div>
             )}
 
-            {/* --- PESTAÑA: DAILY LOG --- */}
+            {/* PESTAÑA: DAILY */}
             {activeTab === 'DAILY' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between mb-2">
@@ -191,25 +231,19 @@ export const Playbook: React.FC = () => {
                     {dailyTrades.length} Trades Recorded
                   </span>
                 </div>
-
                 {dailyTrades.length === 0 ? (
                   <div className="border border-[#262626] border-dashed rounded-lg bg-[#0a0a0a] p-10 text-center">
                     <p className="text-[#525252] font-mono text-sm">No operations recorded on this date.</p>
                   </div>
                 ) : (
                   dailyTrades.map(trade => (
-                    <TradeCard 
-                      key={trade.id} 
-                      trade={trade} 
-                      onToggleFavorite={() => toggleFavorite(trade)} 
-                      onImageClick={setLightboxImage} 
-                    />
+                    <TradeCard key={trade.id} trade={trade} onToggleFavorite={() => toggleFavorite(trade)} onImageClick={setLightboxImage} />
                   ))
                 )}
               </div>
             )}
 
-            {/* --- PESTAÑA: MASTER SETUPS --- */}
+            {/* PESTAÑA: MASTERS */}
             {activeTab === 'MASTERS' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="mb-4">
@@ -218,7 +252,6 @@ export const Playbook: React.FC = () => {
                   </h3>
                   <p className="text-xs text-[#737373] font-mono mt-1">Study your highest quality executions to build pattern recognition.</p>
                 </div>
-
                 {masterTrades.length === 0 ? (
                   <div className="border border-[#262626] border-dashed rounded-lg bg-[#0a0a0a] p-10 text-center flex flex-col items-center">
                     <Star className="text-[#262626] mb-3" size={32} />
@@ -227,13 +260,7 @@ export const Playbook: React.FC = () => {
                   </div>
                 ) : (
                   masterTrades.map(trade => (
-                    <TradeCard 
-                      key={trade.id} 
-                      trade={trade} 
-                      onToggleFavorite={() => toggleFavorite(trade)} 
-                      onImageClick={setLightboxImage} 
-                      isMasterView
-                    />
+                    <TradeCard key={trade.id} trade={trade} onToggleFavorite={() => toggleFavorite(trade)} onImageClick={setLightboxImage} isMasterView />
                   ))
                 )}
               </div>
@@ -254,7 +281,7 @@ const TabButton = ({ active, onClick, icon, label, disabled = false }: { active:
   <button
     disabled={disabled}
     onClick={onClick}
-    className={`flex items-center gap-2 px-6 py-4 font-mono text-xs uppercase tracking-widest transition-all border-b-2 ${
+    className={`flex items-center gap-2 px-6 py-4 font-mono text-xs uppercase tracking-widest transition-all border-b-2 whitespace-nowrap ${
       active 
         ? 'border-[#2563EB] text-[#d4d4d4] bg-[#0f0f0f]' 
         : 'border-transparent text-[#525252] hover:text-[#d4d4d4] hover:bg-[#141414]'
@@ -271,14 +298,12 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
   return (
     <div className={`border rounded-lg bg-[#0a0a0a] p-5 relative overflow-hidden transition-all ${trade.isFavorite ? 'border-[#FACC15]/30' : 'border-[#262626]'}`}>
       
-      {/* Etiqueta de Master Setup */}
       {trade.isFavorite && isMasterView && (
         <div className="absolute top-0 right-0 bg-[#FACC15]/10 text-[#FACC15] px-3 py-1 text-[9px] uppercase tracking-widest font-mono font-bold rounded-bl-lg border-b border-l border-[#FACC15]/20">
           Master Setup
         </div>
       )}
 
-      {/* Cabecera del Trade */}
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -304,13 +329,12 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
             }`}
           >
             <Star size={12} className={trade.isFavorite ? 'fill-[#FACC15]' : ''} />
-            {trade.isFavorite ? 'Demote' : 'Promote to Playbook'}
+            {trade.isFavorite ? 'Demote' : 'Promote'}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        {/* Metricas */}
         <div className="bg-[#0f0f0f] border border-[#262626] rounded p-3 grid grid-cols-2 gap-2 text-xs font-mono">
           <div><span className="text-[#525252]">Risk:</span> <span className="text-[#d4d4d4]">{trade.management.riskPercentage}%</span></div>
           <div><span className="text-[#525252]">RR Plan:</span> <span className="text-[#d4d4d4]">1:{trade.management.plannedRR}</span></div>
@@ -318,7 +342,6 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
           <div><span className="text-[#525252]">Outcome:</span> <span className="text-[#d4d4d4]">{trade.management.outcome}</span></div>
         </div>
 
-        {/* Psicologia */}
         <div className="bg-[#0f0f0f] border border-[#262626] rounded p-3 flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-mono text-[#525252]">Execution Quality</span>
@@ -337,7 +360,6 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
         </div>
       </div>
 
-      {/* Checklist / Factores RE-ESTRUCTURADO */}
       {trade.preTrade.confirmations.length > 0 && (
         <div className="mb-4 border-l-2 border-[#262626] pl-3">
            <span className="text-[10px] font-mono text-[#737373] uppercase tracking-widest block mb-2">Execution Factors</span>
@@ -352,21 +374,19 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
         </div>
       )}
 
-      {/* Notas */}
       {trade.evaluation.tradeNotes && (
         <div className="mb-4 bg-[#141414] p-3 rounded text-xs font-mono text-[#d4d4d4] border border-[#262626] whitespace-pre-wrap">
           {trade.evaluation.tradeNotes}
         </div>
       )}
 
-      {/* Galería de Imágenes Visuales */}
       {(trade.visuals.analysisUrl || trade.visuals.entryUrl || trade.visuals.resultUrl) && (
         <div className="border-t border-[#262626] pt-4 mt-2">
           <span className="text-[10px] font-mono text-[#737373] uppercase tracking-widest block mb-3">Visual Logs</span>
           <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2">
-            {trade.visuals.analysisUrl && <ImageThumbnail url={trade.visuals.analysisUrl} label="HTF Analysis" onClick={() => onImageClick(trade.visuals.analysisUrl)} />}
-            {trade.visuals.entryUrl && <ImageThumbnail url={trade.visuals.entryUrl} label="Entry Trigger" onClick={() => onImageClick(trade.visuals.entryUrl)} />}
-            {trade.visuals.resultUrl && <ImageThumbnail url={trade.visuals.resultUrl} label="Trade Result" onClick={() => onImageClick(trade.visuals.resultUrl)} />}
+            {trade.visuals.analysisUrl && <ImageThumbnail url={trade.visuals.analysisUrl} label="HTF" onClick={() => onImageClick(trade.visuals.analysisUrl)} />}
+            {trade.visuals.entryUrl && <ImageThumbnail url={trade.visuals.entryUrl} label="Entry" onClick={() => onImageClick(trade.visuals.entryUrl)} />}
+            {trade.visuals.resultUrl && <ImageThumbnail url={trade.visuals.resultUrl} label="Result" onClick={() => onImageClick(trade.visuals.resultUrl)} />}
           </div>
         </div>
       )}
@@ -376,19 +396,12 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
 
 const ImageThumbnail = ({ url, label, onClick }: { url: string, label: string, onClick: () => void }) => {
   return (
-    <div 
-      onClick={onClick}
-      className="relative group cursor-pointer w-40 h-24 shrink-0 rounded border border-[#262626] overflow-hidden bg-[#141414] flex items-center justify-center"
-    >
-      {/* Intenta cargar como imagen. Si es un link de TradingView roto, se verá el fallback visual */}
+    <div onClick={onClick} className="relative group cursor-pointer w-40 h-24 shrink-0 rounded border border-[#262626] overflow-hidden bg-[#141414] flex items-center justify-center">
       <img src={url} alt={label} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-      
-      {/* Fallback & Overlay UI */}
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a]/50 group-hover:bg-transparent transition-colors">
         <ImageIcon size={18} className="text-[#737373] mb-1 group-hover:opacity-0 transition-opacity" />
         <span className="text-[10px] font-mono font-bold text-[#d4d4d4] bg-[#0a0a0a]/80 px-2 py-0.5 rounded">{label}</span>
       </div>
-      
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[#2563EB] p-1 rounded text-white shadow-lg">
         <ZoomIn size={14} />
       </div>
