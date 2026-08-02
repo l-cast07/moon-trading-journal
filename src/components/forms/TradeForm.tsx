@@ -1,11 +1,12 @@
 // src/components/forms/TradeForm.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, AlertTriangle, Info, Star, ExternalLink, Keyboard, CheckSquare } from 'lucide-react';
+import { Save, AlertTriangle, Keyboard, CheckSquare, Star, ExternalLink } from 'lucide-react';
 import { useMoonStore } from '../../store/useMoonStore';
 import { addTrade, getStrategyById } from '../../data/queries';
-import { Trade, TradingSession, MarketTrend, TradeDirection, TradeOutcome, ExecutionError, Strategy } from '../../types';
+import { Trade, TradingSession, MarketTrend, TradeDirection, TradeOutcome, ExecutionError, Strategy, TradeConfirmation } from '../../types';
 import { useTradeHotkeys } from './HotkeyManager';
+import { ConfirmationBuilder } from './ConfirmationBuilder';
 
 const DRAFT_KEY = 'moon_trade_draft';
 
@@ -23,8 +24,12 @@ export const TradeForm: React.FC = () => {
     }
   }, [currentStrategyId]);
 
-  // Extraer las reglas de la estrategia para generar el Checklist dinámico
-  const strategyRules = useMemo(() => {
+  // Generar lista de confirmaciones disponibles (Soporta estrategias nuevas y viejas)
+  const availableConfirmations = useMemo(() => {
+    if (strategy?.allowedConfirmations && strategy.allowedConfirmations.length > 0) {
+      return strategy.allowedConfirmations;
+    }
+    // Fallback de compatibilidad si la estrategia es vieja y solo tiene "rules" de texto
     if (!strategy?.rules) return [];
     return strategy.rules
       .split('\n')
@@ -44,7 +49,7 @@ export const TradeForm: React.FC = () => {
       trend: 'Bullish' as MarketTrend,
       direction: 'Long' as TradeDirection,
       entryTime: '',
-      confirmations: [] as string[],
+      confirmations: [] as TradeConfirmation[], // Actualizado para soportar objetos
       riskPercentage: 1.0,
       plannedRR: 2.0,
       achievedRR: 0,
@@ -81,16 +86,6 @@ export const TradeForm: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
-  };
-
-  // AQUÍ ESTABA EL ERROR: Faltaba la declaración de esta función
-  const toggleConfirmation = (rule: string) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      confirmations: prev.confirmations.includes(rule)
-        ? prev.confirmations.filter((c: string) => c !== rule)
-        : [...prev.confirmations, rule]
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,32 +219,16 @@ export const TradeForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Checklist Dinámico de Confirmaciones */}
+            {/* INTEGRACIÓN DEL CONSTRUCTOR DE CONFIRMACIONES */}
             <div className="col-span-2 mt-2">
               <label className="flex items-center gap-2 text-xs font-mono text-[#737373] mb-2">
-                <CheckSquare size={14} /> Strategy Confirmations
+                <CheckSquare size={14} /> Dynamic Confirmations
               </label>
-              {strategyRules.length > 0 ? (
-                <div className="space-y-2 bg-[#141414] p-3 rounded border border-[#262626]">
-                  {strategyRules.map((rule, idx) => (
-                    <label key={idx} className="flex items-start gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={formData.confirmations.includes(rule)} 
-                        onChange={() => toggleConfirmation(rule)}
-                        className="mt-0.5 accent-[#2563EB] bg-[#0a0a0a] border-[#525252] rounded-sm cursor-pointer"
-                      />
-                      <span className={`text-xs font-mono transition-colors ${formData.confirmations.includes(rule) ? 'text-[#d4d4d4]' : 'text-[#737373] group-hover:text-[#a3a3a3]'}`}>
-                        {rule}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-[#141414] border border-[#262626] border-dashed rounded p-3 text-center">
-                  <span className="text-xs font-mono text-[#525252]">No rules defined in active strategy playbook.</span>
-                </div>
-              )}
+              <ConfirmationBuilder 
+                availableTypes={availableConfirmations}
+                selectedConfirmations={formData.confirmations}
+                onChange={(confs) => setFormData({...formData, confirmations: confs})}
+              />
             </div>
 
           </div>

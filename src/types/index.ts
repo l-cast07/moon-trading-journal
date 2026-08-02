@@ -1,5 +1,13 @@
 // src/types/index.ts
 
+export interface TradeConfirmation {
+  id: string;        // Para facilitar el borrado en React
+  type: string;      // ej. "FVG+"
+  timeframe: string; // ej. "15m"
+}
+
+export type ConfirmationType = 'FVG+' | 'FVG-' | 'ITL' | 'ITH' | 'OB' | 'SWEEP.H' | 'SWEEP.L' | 'BOS' | 'CHOCH' | 'UMT FVG-' | 'UMT FVG+' | 'LO.H' | 'LO.L' | 'AS.H' | 'AS.L' | 'NY.H' | 'NY.L';
+export type Timeframe = '1m' | '2m' | '3m' | '4m' | '5m' | '15m' | '1H' | '4H' | 'D';
 /**
  * Valid trading sessions for market filtering
  */
@@ -29,28 +37,27 @@ export type ExecutionError = 'FOMO' | 'Patience' | 'Outside_Plan' | 'Overtrading
  * Strategy Profile Metadata (Versión Pro)
  */
 export interface Strategy {
-  id: string;                  // Unique UUID or auto-incremented string ID
-  name: string;                // Name of the strategy
-  initialCapital: number;      // Initial simulation capital in USD
-  createdAt: number;           // Unix timestamp
-  
-  // PLAYBOOK PRO CONFIGURATIONS
-  rules?: string;              // Reglas operativas (Checklist Inmutable)
-  marketContext?: string;      // Condiciones del mercado para operar
-  riskParameters?: string;     // Límites de riesgo de capital
-  manifesto?: string;          // Tu "ancla" mental y filosofía como trader (Nuevo)
+  id: string;
+  name: string;
+  initialCapital: number;
+  createdAt: number;
+  rules?: string;
+  marketContext?: string;
+  riskParameters?: string;
+  manifesto?: string;
+  allowedConfirmations?: string[]; // <-- NUEVO: Guarda las confirmaciones permitidas (ej. ['FVG+', 'OB'])
 }
 
 /**
  * Section 1: Pre-Trade Analysis Context
  */
 export interface PreTradeAnalysis {
-  market: string;              // Target index/asset (e.g., "Nasdaq-100")
-  session: TradingSession;     // Market session slot
-  trend: MarketTrend;          // Higher time frame bias
-  direction: TradeDirection;   // Trade execution bias
-  entryTime: string;           // Formatted time string (HH:MM)
-  confirmations: string[];     // Array of strategy rules satisfied (Checklist visual)
+  market: string;
+  session: TradingSession;
+  trend: MarketTrend;
+  direction: TradeDirection;
+  entryTime: string;
+  confirmations: TradeConfirmation[]; // <-- MODIFICADO
 }
 
 /**

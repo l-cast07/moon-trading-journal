@@ -337,13 +337,16 @@ const TradeCard = ({ trade, onToggleFavorite, onImageClick, isMasterView = false
         </div>
       </div>
 
-      {/* Checklist / Factores */}
+      {/* Checklist / Factores RE-ESTRUCTURADO */}
       {trade.preTrade.confirmations.length > 0 && (
         <div className="mb-4 border-l-2 border-[#262626] pl-3">
-           <span className="text-[10px] font-mono text-[#737373] uppercase tracking-widest block mb-1">Execution Factors</span>
+           <span className="text-[10px] font-mono text-[#737373] uppercase tracking-widest block mb-2">Execution Factors</span>
            <div className="flex flex-wrap gap-2">
-             {trade.preTrade.confirmations.map((conf, idx) => (
-               <span key={idx} className="bg-[#141414] text-[#d4d4d4] text-[10px] font-mono px-2 py-1 rounded">✓ {conf}</span>
+             {trade.preTrade.confirmations.map((conf: any) => (
+               <div key={conf.id || crypto.randomUUID()} className="flex items-center bg-[#141414] border border-[#262626] rounded px-2 py-1 text-[10px] font-mono shadow-sm">
+                 <span className="font-bold text-[#2563EB] mr-1">{conf.type || conf}</span>
+                 {conf.timeframe && <span className="text-[#737373]">({conf.timeframe})</span>}
+               </div>
              ))}
            </div>
         </div>

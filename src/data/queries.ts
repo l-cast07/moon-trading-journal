@@ -6,7 +6,9 @@ import { Trade, Strategy } from '../types';
 // ==========================================
 // STRATEGY QUERIES
 // ==========================================
-
+export const updateStrategy = async (id: string, updates: Partial<Strategy>): Promise<number> => {
+  return await db.strategies.update(id, updates);
+};
 /**
  * Creates a new strategy profile
  */
